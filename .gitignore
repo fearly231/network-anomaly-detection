@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML artifacts
+models/
+reports/
+*.pkl
+*.joblib
+*.onnx
+*.h5
+
+# Data (duże/surowe pliki)
+data/raw/
+data/processed/
+*.csv
+*.parquet
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
