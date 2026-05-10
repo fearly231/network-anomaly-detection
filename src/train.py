@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from data_loader import add_binary_target, load_nsl_kdd
+from modeling import evaluate_binary_classifier, train_baseline_model
+from preprocess import prepare_features
 
 
 def print_dataset_summary(name: str, df) -> None:
@@ -24,6 +26,23 @@ def main() -> None:
 
     print_dataset_summary("TRAIN", train_df)
     print_dataset_summary("TEST", test_df)
+
+    x_train, y_train, x_test, y_test, _ = prepare_features(train_df, test_df)
+    print("\nPREPROCESSING")
+    print(f"X_train shape: {x_train.shape}")
+    print(f"X_test shape:  {x_test.shape}")
+    print(f"y_train shape: {y_train.shape}")
+    print(f"y_test shape:  {y_test.shape}")
+
+    model = train_baseline_model(x_train, y_train)
+    metrics, confusion = evaluate_binary_classifier(model, x_test, y_test)
+
+    print("\nBASELINE: RandomForestClassifier")
+    for key, value in metrics.items():
+        print(f"{key}: {value:.4f}")
+
+    print("\nConfusion matrix [ [TN, FP], [FN, TP] ]")
+    print(confusion)
 
 
 if __name__ == "__main__":
