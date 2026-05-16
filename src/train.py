@@ -7,8 +7,8 @@ import seaborn as sns
 from sklearn.metrics import precision_recall_curve, roc_curve
 
 from data_loader import add_binary_target, load_nsl_kdd
-from modeling import evaluate_binary_classifier, train_baseline_model
-from preprocess import prepare_features
+from modeling import evaluate_binary_classifier
+from preprocess import build_preprocessor, DROP_COLUMNS
 
 
 def print_dataset_summary(name: str, df) -> None:
@@ -126,20 +126,62 @@ def main() -> None:
     print_dataset_summary("TRAIN", train_df)
     print_dataset_summary("TEST", test_df)
 
-    x_train, y_train, x_test, y_test, _ = prepare_features(train_df, test_df)
-    print("\nPREPROCESSING")
+    # Use raw DataFrames here; the preprocessor is part of the pipeline
+    x_train = train_df.drop(columns=DROP_COLUMNS)
+    y_train = train_df["target"]
+    x_test = test_df.drop(columns=DROP_COLUMNS)
+    y_test = test_df["target"]
+
+    print("\nPREPROCESSING (pipeline will handle transforms)")
     print(f"X_train shape: {x_train.shape}")
     print(f"X_test shape:  {x_test.shape}")
     print(f"y_train shape: {y_train.shape}")
     print(f"y_test shape:  {y_test.shape}")
 
-    model = train_baseline_model(x_train, y_train)
-    metrics, confusion = evaluate_binary_classifier(model, x_test, y_test)
-    
-    # Pobierz prawdopodobieństwa dla krzywych ROC/PR
-    y_proba = model.predict_proba(x_test)[:, 1]
+    preprocessor = build_preprocessor()
+    # lazy imports
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import StratifiedKFold, RandomizedSearchCV
+    from imblearn.pipeline import Pipeline as ImbPipeline
+    from imblearn.over_sampling import SMOTE
 
-    print("\nBASELINE: RandomForestClassifier")
+    pipeline = ImbPipeline([
+        ("preprocessor", preprocessor),
+        ("smote", SMOTE(random_state=42)),
+        ("clf", RandomForestClassifier(random_state=42, n_jobs=-1)),
+    ])
+
+    param_dist = {
+        "clf__n_estimators": [100, 200, 300, 400],
+        "clf__max_depth": [None, 10, 20, 50],
+        "clf__class_weight": [None, "balanced", "balanced_subsample"],
+    }
+
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    search = RandomizedSearchCV(
+        estimator=pipeline,
+        param_distributions=param_dist,
+        n_iter=20,
+        scoring="average_precision",
+        cv=cv,
+        n_jobs=-1,
+        verbose=1,
+        random_state=42,
+    )
+
+    print("\nRunning RandomizedSearchCV (this may take a while)...")
+    search.fit(x_train, y_train)
+
+    print("\nBest params:")
+    print(search.best_params_)
+
+    best = search.best_estimator_
+
+    # Use recommended threshold (change here to tune)
+    chosen_threshold = 0.01
+    metrics, confusion, y_proba = evaluate_binary_classifier(best, x_test, y_test, threshold=chosen_threshold)
+
+    print("\nBEST MODEL")
     for key, value in metrics.items():
         print(f"{key}: {value:.4f}")
 
@@ -147,15 +189,10 @@ def main() -> None:
     print(confusion)
 
     # Zapisz wyniki
-    model_params = {
-        "model": "RandomForestClassifier",
-        "n_estimators": 300,
-        "class_weight": "balanced_subsample",
-        "random_state": 42,
-    }
-    save_experiment_log(metrics, confusion, model_params, experiment_name="baseline")
-    plot_confusion_matrix(confusion, experiment_name="baseline")
-    plot_roc_pr_curves(y_test, y_proba, experiment_name="baseline")
+    model_params = {**search.best_params_, "model": "RandomForestClassifier"}
+    save_experiment_log(metrics, confusion, model_params, experiment_name="rf_random_search")
+    plot_confusion_matrix(confusion, experiment_name="rf_random_search")
+    plot_roc_pr_curves(y_test, y_proba, experiment_name="rf_random_search")
 
 
 if __name__ == "__main__":
