@@ -143,11 +143,10 @@ def main() -> None:
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import StratifiedKFold, RandomizedSearchCV
     from imblearn.pipeline import Pipeline as ImbPipeline
-    from imblearn.over_sampling import SMOTE
+   
 
     pipeline = ImbPipeline([
         ("preprocessor", preprocessor),
-        ("smote", SMOTE(random_state=42)),
         ("clf", RandomForestClassifier(random_state=42, n_jobs=-1)),
     ])
 
@@ -169,7 +168,7 @@ def main() -> None:
         random_state=42,
     )
 
-    print("\nRunning RandomizedSearchCV (this may take a while)...")
+    print("\nRunning RandomizedSearchCV ...")
     search.fit(x_train, y_train)
 
     print("\nBest params:")
@@ -177,7 +176,7 @@ def main() -> None:
 
     best = search.best_estimator_
 
-    # Use recommended threshold (change here to tune)
+    # Treshold
     chosen_threshold = 0.01
     metrics, confusion, y_proba = evaluate_binary_classifier(best, x_test, y_test, threshold=chosen_threshold)
 
@@ -188,7 +187,6 @@ def main() -> None:
     print("\nConfusion matrix [ [TN, FP], [FN, TP] ]")
     print(confusion)
 
-    # Zapisz wyniki
     model_params = {**search.best_params_, "model": "RandomForestClassifier"}
     save_experiment_log(metrics, confusion, model_params, experiment_name="rf_random_search")
     plot_confusion_matrix(confusion, experiment_name="rf_random_search")
