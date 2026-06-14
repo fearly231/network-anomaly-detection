@@ -1,3 +1,4 @@
+import numpy as np
 from pathlib import Path
 
 import pandas as pd
@@ -29,6 +30,11 @@ def prepare_autoencoder_data(
     train_df = train_df.drop(columns=[DIFFICULTY_COLUMN])
     test_df = test_df.drop(columns=[DIFFICULTY_COLUMN])
 
+    # Log-transform highly skewed features to prevent outliers from dominating reconstruction error
+    skewed_features = ["duration", "src_bytes", "dst_bytes"]
+    for col in skewed_features:
+        train_df[col] = np.log1p(train_df[col])
+        test_df[col] = np.log1p(test_df[col])
     
     for column in CAT_COLUMNS:
         train_df[column] = train_df[column].astype("object")
@@ -81,7 +87,7 @@ def prepare_autoencoder_data(
     X_train_normal = X_train[normal_mask]
 
     
-    scaler = StandardScaler(with_mean=False)
+    scaler = StandardScaler(with_mean=True)
     X_train_normal = scaler.fit_transform(X_train_normal)
     X_val = scaler.transform(X_val)
     X_test = scaler.transform(X_test)

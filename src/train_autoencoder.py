@@ -1,9 +1,10 @@
 from pathlib import Path
+import json
 
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, f1_score
 from tensorflow import keras
 from tensorflow.keras import layers
 
@@ -142,7 +143,20 @@ def train_and_evaluate_autoencoder(
     )
 
     val_errors = reconstruction_errors(autoencoder, X_val_dense)
-    threshold = np.percentile(val_errors, 95)
+    
+    # Optimize threshold on validation set (maximize F1-score)
+    print("Finding optimal threshold ...")
+    best_f1 = 0
+    best_threshold = 0
+    percentile_candidates = np.percentile(val_errors, np.linspace(50, 99.9, 500))
+    for thresh in percentile_candidates:
+        y_pred = (val_errors > thresh).astype(int)
+        f1 = f1_score(y_val_binary, y_pred)
+        if f1 > best_f1:
+            best_f1 = f1
+            best_threshold = thresh
+
+    threshold = best_threshold
     y_val_pred = (val_errors > threshold).astype(int)
 
     report = classification_report(y_val_binary, y_val_pred, digits=4)
@@ -155,7 +169,7 @@ def main() -> None:
     train_path = Path("data/raw/KDDTrain+.txt")
     test_path = Path("data/raw/KDDTest+.txt")
 
-    X_train_scaled, X_val_scaled, y_val_binary, X_test_scaled, y_test_binary, _, _ = prepare_autoencoder_data(
+    X_train_scaled, X_val_scaled, y_val_binary, X_test_scaled, y_test_binary, scaler, combined_features = prepare_autoencoder_data(
         train_path=train_path,
         test_path=test_path,
     )
@@ -187,6 +201,37 @@ def main() -> None:
     print(f"y_val_binary shape:   {y_val_binary.shape}")
     print(f"X_test_scaled shape:  {to_dense(X_test_scaled).shape}")
     print(f"y_test_binary shape:  {y_test_binary.shape}")
+
+    # Save the model, scaler and threshold config
+    models_dir = Path("models")
+    models_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Save Keras Model
+    model_path = models_dir / "autoencoder.keras"
+    autoencoder.save(model_path)
+    print(f"\n[OK] Saved model to {model_path}")
+
+    # 2. Save Scaler to JSON (secure alternative to pickle)
+    scaler_path = models_dir / "scaler.json"
+    scaler_data = {
+        "mean": scaler.mean_.tolist(),
+        "var": scaler.var_.tolist(),
+        "scale": scaler.scale_.tolist(),
+        "n_samples_seen": scaler.n_samples_seen_.tolist() if isinstance(scaler.n_samples_seen_, np.ndarray) else int(scaler.n_samples_seen_)
+    }
+    with open(scaler_path, "w") as f:
+        json.dump(scaler_data, f, indent=4)
+    print(f"[OK] Saved scaler to {scaler_path}")
+
+    # 3. Save Config (Threshold & Feature Names)
+    config_path = models_dir / "model_config.json"
+    config_data = {
+        "threshold": float(threshold),
+        "feature_names": combined_features.columns.tolist()
+    }
+    with open(config_path, "w") as f:
+        json.dump(config_data, f, indent=4)
+    print(f"[OK] Saved configuration to {config_path}")
 
 
 if __name__ == "__main__":
