@@ -7,6 +7,10 @@ CATEGORICAL_COLUMNS = ["protocol_type", "service", "flag"]
 DROP_COLUMNS = ["label", "difficulty_level", "target"]
 
 
+def _get_numeric_columns(df) -> list:
+    return [c for c in df.columns if c not in CATEGORICAL_COLUMNS]
+
+
 def build_preprocessor() -> ColumnTransformer:
     categorical_transformer = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
     numeric_transformer = StandardScaler()
@@ -14,10 +18,11 @@ def build_preprocessor() -> ColumnTransformer:
     return ColumnTransformer(
         transformers=[
             ("categorical", categorical_transformer, CATEGORICAL_COLUMNS),
-            ("numeric", numeric_transformer, lambda df: [c for c in df.columns if c not in CATEGORICAL_COLUMNS]),
+            ("numeric", numeric_transformer, _get_numeric_columns),
         ],
         sparse_threshold=0,
     )
+
 
 
 def prepare_features(train_df, test_df) -> Tuple:

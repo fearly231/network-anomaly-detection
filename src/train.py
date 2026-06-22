@@ -44,8 +44,9 @@ def save_experiment_log(
     with open(log_file, "w") as f:
         json.dump(log_data, f, indent=2)
 
-    print(f"\n✓ Log saved: {log_file}")
+    print(f"\n[OK] Log saved: {log_file}")
     return log_file
+
 
 
 def plot_confusion_matrix(confusion: object, experiment_name: str = "baseline") -> Path:
@@ -72,7 +73,7 @@ def plot_confusion_matrix(confusion: object, experiment_name: str = "baseline") 
     plt.savefig(plot_file, dpi=100)
     plt.close()
 
-    print(f"✓ Plot saved: {plot_file}")
+    print(f"[OK] Plot saved: {plot_file}")
     return plot_file
 
 
@@ -112,7 +113,7 @@ def plot_roc_pr_curves(
     plt.savefig(plot_file, dpi=100)
     plt.close()
 
-    print(f"✓ Plot saved: {plot_file}")
+    print(f"[OK] Plot saved: {plot_file}")
     return plot_file
 
 
@@ -176,6 +177,14 @@ def main() -> None:
 
     best = search.best_estimator_
 
+    # Save the Random Forest pipeline
+    import joblib
+    models_dir = Path("models")
+    models_dir.mkdir(parents=True, exist_ok=True)
+    rf_model_path = models_dir / "random_forest.joblib"
+    joblib.dump(best, rf_model_path)
+    print(f"[OK] Saved Random Forest pipeline to {rf_model_path}")
+
     # Treshold
     chosen_threshold = 0.01
     metrics, confusion, y_proba = evaluate_binary_classifier(best, x_test, y_test, threshold=chosen_threshold)
@@ -195,3 +204,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
