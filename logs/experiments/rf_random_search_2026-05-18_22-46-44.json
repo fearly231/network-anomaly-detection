@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-05-18T22:46:44.273045",
+  "experiment": "rf_random_search",
+  "model_params": {
+    "model": "RandomForestClassifier",
+    "search": "disabled"
+  },
+  "metrics": {
+    "threshold": 0.01,
+    "accuracy": 0.9263218594748048,
+    "precision": 0.897410358565737,
+    "recall": 0.9829346216784851,
+    "f1": 0.9382275279854215,
+    "roc_auc": 0.9597589738759107,
+    "pr_auc": 0.9612957335819777
+  },
+  "confusion_matrix": [
+    [
+      8269,
+      1442
+    ],
+    [
+      219,
+      12614
+    ]
+  ]
+}
